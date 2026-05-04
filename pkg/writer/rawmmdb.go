@@ -122,12 +122,18 @@ func writeEmptyArray(buf []byte) int {
 // writeSearchTree writes a 1-node search tree with 24-bit records,
 // both pointing to the data section.
 func writeSearchTree(buf []byte, recordValue uint32) int {
-	buf[0] = byte((recordValue >> 16) & 0xFF)
-	buf[1] = byte((recordValue >> 8) & 0xFF)
-	buf[2] = byte(recordValue & 0xFF)
-	buf[3] = byte((recordValue >> 16) & 0xFF)
-	buf[4] = byte((recordValue >> 8) & 0xFF)
-	buf[5] = byte(recordValue & 0xFF)
+	return writeSearchTreeRecords(buf, recordValue, recordValue)
+}
+
+// writeSearchTreeRecords writes a 1-node search tree with 24-bit records
+// where the left and right records can hold different values.
+func writeSearchTreeRecords(buf []byte, leftRecord, rightRecord uint32) int {
+	buf[0] = byte((leftRecord >> 16) & 0xFF)
+	buf[1] = byte((leftRecord >> 8) & 0xFF)
+	buf[2] = byte(leftRecord & 0xFF)
+	buf[3] = byte((rightRecord >> 16) & 0xFF)
+	buf[4] = byte((rightRecord >> 8) & 0xFF)
+	buf[5] = byte(rightRecord & 0xFF)
 	return 6
 }
 
@@ -283,6 +289,69 @@ func writeMetadataBlockEmptyArrayLast(buf []byte, nodeCount uint32, buildEpoch u
 // is incorrectly rejected for 0-length containers.
 func buildEmptyMapLastInMetadataDB() []byte {
 	return buildSimpleDB(writeMetadataBlockEmptyMapLast)
+}
+
+// buildMetadataMarkerOnlyDB returns a file that contains only the metadata
+// marker (\xab\xcd\xefMaxMind.com) with no metadata bytes following.
+// Readers should reject this as invalid metadata rather than allowing a
+// zero-length metadata section to reach the decoder.
+func buildMetadataMarkerOnlyDB() []byte {
+	return []byte(metadataMarker)
+}
+
+// buildSeparatorRecordDB creates a complete 1-node MMDB where the left and
+// right records of node 0 hold the given values. With nodeCount = 1, any
+// record value in the half-open range [2, 17) points into the 16-byte
+// separator between the search tree and data section. Readers should reject
+// such records as a corrupt search tree rather than exposing them as data
+// entries with underflowed offsets.
+func buildSeparatorRecordDB(leftRecord, rightRecord uint32) []byte {
+	const nodeCount = 1
+	const buildEpoch = 1_000_000_000
+
+	buf := make([]byte, 1024)
+	pos := 0
+
+	pos += writeSearchTreeRecords(buf[pos:], leftRecord, rightRecord)
+
+	// 16-byte null separator
+	pos += dataSeparatorSize
+
+	// Data section: a simple map so a valid record (nodeCount + 16) can
+	// resolve to a real entry.
+	pos += writeMap(buf[pos:], 1)
+	pos += writeString(buf[pos:], "ip")
+	pos += writeString(buf[pos:], "test")
+
+	pos += writeMetadataBlock(buf[pos:], nodeCount, buildEpoch)
+
+	return buf[:pos]
+}
+
+// buildSeparatorRecordMinLeftDB creates an MMDB whose node 0 left record
+// equals nodeCount + 1 (the first byte of the data section separator).
+func buildSeparatorRecordMinLeftDB() []byte {
+	const nodeCount = 1
+	const validRecord = nodeCount + dataSeparatorSize
+	return buildSeparatorRecordDB(nodeCount+1, validRecord)
+}
+
+// buildSeparatorRecordMinRightDB creates an MMDB whose node 0 right record
+// equals nodeCount + 1. The left record is valid, so this exercises the
+// right-record-corruption path independently.
+func buildSeparatorRecordMinRightDB() []byte {
+	const nodeCount = 1
+	const validRecord = nodeCount + dataSeparatorSize
+	return buildSeparatorRecordDB(validRecord, nodeCount+1)
+}
+
+// buildSeparatorRecordMaxLeftDB creates an MMDB whose node 0 left record
+// equals nodeCount + 15 (the last byte of the data section separator),
+// exercising the upper boundary of the invalid range.
+func buildSeparatorRecordMaxLeftDB() []byte {
+	const nodeCount = 1
+	const validRecord = nodeCount + dataSeparatorSize
+	return buildSeparatorRecordDB(nodeCount+dataSeparatorSize-1, validRecord)
 }
 
 // buildEmptyArrayLastInMetadataDB creates a valid MMDB where the metadata
