@@ -31,6 +31,7 @@ func (w *Writer) WriteBadDataDBs(target string) error {
 		{"libmaxminddb-corrupt-search-tree.mmdb", buildCorruptSearchTreeDB()},
 		{"libmaxminddb-empty-map-last-in-metadata.mmdb", buildEmptyMapLastInMetadataDB()},
 		{"libmaxminddb-empty-array-last-in-metadata.mmdb", buildEmptyArrayLastInMetadataDB()},
+		{"libmaxminddb-metadata-marker-only.mmdb", buildMetadataMarkerOnlyDB()},
 	} {
 		if err := writeRawDB(target, db.name, db.data); err != nil {
 			return fmt.Errorf("writing %s: %w", db.name, err)

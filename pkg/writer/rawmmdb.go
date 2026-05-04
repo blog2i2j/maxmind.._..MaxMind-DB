@@ -285,6 +285,14 @@ func buildEmptyMapLastInMetadataDB() []byte {
 	return buildSimpleDB(writeMetadataBlockEmptyMapLast)
 }
 
+// buildMetadataMarkerOnlyDB returns a file that contains only the metadata
+// marker (\xab\xcd\xefMaxMind.com) with no metadata bytes following.
+// Readers should reject this as invalid metadata rather than allowing a
+// zero-length metadata section to reach the decoder.
+func buildMetadataMarkerOnlyDB() []byte {
+	return []byte(metadataMarker)
+}
+
 // buildEmptyArrayLastInMetadataDB creates a valid MMDB where the metadata
 // map's last field is "languages" (an empty array []). Tests the array
 // validation path of the same off-by-one bug.
