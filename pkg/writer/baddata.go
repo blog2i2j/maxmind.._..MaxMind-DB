@@ -32,6 +32,9 @@ func (w *Writer) WriteBadDataDBs(target string) error {
 		{"libmaxminddb-empty-map-last-in-metadata.mmdb", buildEmptyMapLastInMetadataDB()},
 		{"libmaxminddb-empty-array-last-in-metadata.mmdb", buildEmptyArrayLastInMetadataDB()},
 		{"libmaxminddb-metadata-marker-only.mmdb", buildMetadataMarkerOnlyDB()},
+		{"libmaxminddb-separator-record-min-left.mmdb", buildSeparatorRecordMinLeftDB()},
+		{"libmaxminddb-separator-record-min-right.mmdb", buildSeparatorRecordMinRightDB()},
+		{"libmaxminddb-separator-record-max-left.mmdb", buildSeparatorRecordMaxLeftDB()},
 	} {
 		if err := writeRawDB(target, db.name, db.data); err != nil {
 			return fmt.Errorf("writing %s: %w", db.name, err)
